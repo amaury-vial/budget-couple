@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="fr" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nos Dépenses du Mois — Crédit + Quotidien</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        /* Hide number input arrows for cleaner inline editing */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 dark:bg-indigo-600 text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
+        <i class="fa-solid fa-check text-emerald-400 dark:text-white"></i>
+        <span id="toast-msg">Sauvegardé</span>
+    </div>
+
+    <!-- Header minimaliste -->
+    <header class="max-w-4xl w-full mx-auto px-4 pt-6 pb-2 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                <i class="fa-solid fa-house-heart text-sm"></i>
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    Budget Couple
+                </h1>
+                <p class="text-[11px] text-slate-400">Simple, rapide & sauvegardé automatiquement</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Reset variable expenses for a new month in 1 click -->
+            <button onclick="openNewMonthConfirm()" class="text-xs font-semibold px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 transition flex items-center gap-1.5 shadow-sm" title="Garder les frais fixes et vider le quotidien pour un nouveau mois">
+                <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i>
+                <span class="hidden sm:inline">Nouveau mois (garder les fixes)</span>
+                <span class="sm:hidden">Nouveau mois</span>
+            </button>
+
+            <!-- Dark mode -->
+            <button onclick="toggleTheme()" class="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-sm" title="Thème clair/sombre">
+                <i id="theme-icon" class="fa-solid fa-moon text-xs"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-4 space-y-6">
+
+        <!-- 1. LES 3 CHIFFRES CLÉS -->
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            
+            <!-- Carte 1 : Notre Crédit (modifiable directement) -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <span>1. Notre Crédit</span>
+                    <i class="fa-solid fa-pen text-[10px] opacity-60" title="Cliquez sur le montant pour le modifier"></i>
+                </div>
+                <div class="my-2 flex items-baseline gap-1">
+                    <input type="number" id="mortgage-input" step="1" min="0"
+                        oninput="updateMortgage(this.value)"
+                        class="w-full text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 focus:border-indigo-500 focus:outline-none py-0.5"
+                        title="Cliquez pour modifier la mensualité du crédit">
+                    <span class="text-xl font-bold text-slate-400">€</span>
+                </div>
+                <p class="text-[11px] text-slate-400">
+                    Cliquez sur le montant pour ajuster
+                </p>
+            </div>
+
+            <!-- Carte 2 : Dépenses EN PLUS du crédit (L'objectif principal) -->
+            <div class="bg-indigo-600 text-white rounded-2xl p-4 sm:p-5 shadow-md shadow-indigo-500/20 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs font-bold text-indigo-200 uppercase tracking-wider">
+                    <span>2. En plus du crédit</span>
+                    <span id="extra-count-pill" class="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white">0 frais</span>
+                </div>
+                <div id="kpi-extra" class="my-2 text-3xl sm:text-4xl font-extrabold tracking-tight">
+                    0 €
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-indigo-100 pt-1 border-t border-white/15">
+                    <span>Fixes: <strong id="kpi-fixed">0 €</strong></span>
+                    <span>•</span>
+                    <span>Quotidien: <strong id="kpi-variable">0 €</strong></span>
+                </div>
+            </div>
+
+            <!-- Carte 3 : Total Mensuel & Par personne -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <span>3. Total Mensuel</span>
+                    <i class="fa-solid fa-equals text-emerald-500"></i>
+                </div>
+                <div id="kpi-total" class="my-2 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    0 €
+                </div>
+                <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg inline-flex items-center justify-between">
+                    <span>Soit par personne (÷2) :</span>
+                    <strong id="kpi-per-person" class="text-sm">0 €</strong>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- 2. BARRE D'AJOUT ULTRA-RAPIDE (3 secondes) -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border-2 border-indigo-500/20 dark:border-indigo-500/30 shadow-sm space-y-3">
+            
+            <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt"></i> Ajouter un frais en 2 secondes
+                </h2>
+                <span class="text-[11px] text-slate-400 hidden sm:inline">Appuyez sur Entrée ↵ pour valider</span>
+            </div>
+
+            <!-- Formulaire en 1 seule ligne -->
+            <form id="quick-add-form" onsubmit="quickAddExpense(event)" class="flex flex-col sm:flex-row gap-2">
+                <!-- Nom de la dépense -->
+                <input type="text" id="add-title" required placeholder="Quoi ? (ex: Courses, EDF, Resto, Essence...)"
+                    class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                <div class="flex gap-2">
+                    <!-- Montant -->
+                    <div class="relative w-32 sm:w-36">
+                        <input type="number" id="add-amount" step="0.01" min="0" required placeholder="Montant"
+                            class="w-full pl-3.5 pr-7 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">€</span>
+                    </div>
+
+                    <!-- Type simple : Quotidien ou Fixe -->
+                    <select id="add-type" class="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                        <option value="VARIABLE">🛒 Quotidien</option>
+                        <option value="FIXED">📌 Frais Fixe</option>
+                    </select>
+
+                    <!-- Bouton Ajouter -->
+                    <button type="submit" class="px-4 sm:px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition flex items-center gap-1.5 shrink-0 active:scale-95">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Ajouter</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Boutons raccourcis 1-clic -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                <span class="text-[11px] text-slate-400 mr-1">Raccourcis :</span>
+                <button type="button" onclick="fillPreset('🛒 Courses', 'VARIABLE')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + 🛒 Courses
+                </button>
+                <button type="button" onclick="fillPreset('⛽ Essence / Péage', 'VARIABLE')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + ⛽ Essence
+                </button>
+                <button type="button" onclick="fillPreset('🍽️ Resto / Sortie', 'VARIABLE')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + 🍽️ Resto
+                </button>
+                <button type="button" onclick="fillPreset('⚡ Électricité / Gaz', 'FIXED')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + ⚡ Élec / Gaz
+                </button>
+                <button type="button" onclick="fillPreset('🌐 Internet / Box', 'FIXED')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + 🌐 Internet
+                </button>
+                <button type="button" onclick="fillPreset('🏡 Assurance / Syndic', 'FIXED')" class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition">
+                    + 🏡 Assurance
+                </button>
+            </div>
+
+        </section>
+
+        <!-- 3. LISTE DES FRAIS DU MOIS (MODIFIABLE DIRECTEMENT SUR PLACE) -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            
+            <!-- Barre d'onglets ultra-simple -->
+            <div class="px-4 sm:px-5 py-3 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                    <button onclick="setFilter('ALL')" id="tab-ALL" class="px-3 py-1.5 rounded-lg transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm">
+                        Tout voir
+                    </button>
+                    <button onclick="setFilter('FIXED')" id="tab-FIXED" class="px-3 py-1.5 rounded-lg transition text-slate-600 dark:text-slate-400">
+                        📌 Frais Fixes
+                    </button>
+                    <button onclick="setFilter('VARIABLE')" id="tab-VARIABLE" class="px-3 py-1.5 rounded-lg transition text-slate-600 dark:text-slate-400">
+                        🛒 Quotidien
+                    </button>
+                </div>
+
+                <span class="text-[11px] text-slate-400">
+                    💡 Astuce : cliquez sur n'importe quel nom ou montant pour le modifier directement
+                </span>
+            </div>
+
+            <!-- Liste des dépenses -->
+            <div id="expenses-list" class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                <!-- Généré par JS -->
+            </div>
+
+            <!-- État vide -->
+            <div id="empty-state" class="hidden py-10 text-center text-slate-400 text-sm">
+                Aucun frais dans cette liste. Utilisez la barre ci-dessus pour en ajouter !
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer : Sauvegarde GitHub Pages (Export / Import JSON) -->
+    <footer class="max-w-4xl w-full mx-auto px-4 py-6 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-4 border-t border-slate-200/60 dark:border-slate-800/60 mt-6">
+        <div>
+            Sauvegarde automatique dans le navigateur • Prêt pour <strong>github.io</strong>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="exportData()" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-download text-indigo-500"></i> Exporter JSON
+            </button>
+            <label class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-400 transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-upload text-emerald-500"></i> Importer JSON
+                <input type="file" accept=".json" class="hidden" onchange="importData(event)">
+            </label>
+        </div>
+    </footer>
+
+    <!-- Petite modale de confirmation pour "Nouveau mois" -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-4">
+            <div class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-calendar-check text-lg"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Démarrer un nouveau mois ?</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Vos <strong>📌 Frais Fixes</strong> et votre <strong>Crédit</strong> seront conservés. Seules les dépenses <strong>🛒 Quotidien</strong> seront remises à zéro.
+                </p>
+            </div>
+            <div class="flex items-center justify-center gap-2 pt-1">
+                <button onclick="closeNewMonthConfirm()" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    Annuler
+                </button>
+                <button onclick="resetVariableExpenses()" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
+                    Oui, nettoyer le quotidien
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'couple_simple_budget_v2';
+        const THEME_KEY = 'duobudget_theme';
+
+        let currentFilter = 'ALL'; // 'ALL', 'FIXED', 'VARIABLE'
+
+        let state = {
+            mortgage: 1150,
+            expenses: [
+                { id: '1', title: '⚡ Électricité & Gaz', amount: 130, type: 'FIXED' },
+                { id: '2', title: '🌐 Box Internet Fibre', amount: 39.99, type: 'FIXED' },
+                { id: '3', title: '🏡 Assurance Habitation', amount: 28, type: 'FIXED' },
+                { id: '4', title: '🛒 Courses Supermarché', amount: 380, type: 'VARIABLE' },
+                { id: '5', title: '⛽ Essence', amount: 90, type: 'VARIABLE' },
+                { id: '6', title: '🍽️ Resto & Sorties', amount: 75, type: 'VARIABLE' }
+            ]
+        };
+
+        // Load data
+        function loadData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && typeof parsed.mortgage === 'number' && Array.isArray(parsed.expenses)) {
+                        state = parsed;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Save data
+        function saveData(showNotification = false) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            if (showNotification) showToast('Enregistré');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.remove('hidden');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => t.classList.add('hidden'), 1800);
+        }
+
+        function formatEuro(num) {
+            const val = Number(num) || 0;
+            return val.toLocaleString('fr-FR', { minimumFractionDigits: val % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 }) + ' €';
+        }
+
+        // Render KPIs & List
+        function render() {
+            // Update mortgage input if not currently focused
+            const mortInput = document.getElementById('mortgage-input');
+            if (document.activeElement !== mortInput) {
+                mortInput.value = state.mortgage;
+            }
+
+            let fixedTotal = 0;
+            let variableTotal = 0;
+
+            state.expenses.forEach(item => {
+                const amt = Number(item.amount) || 0;
+                if (item.type === 'FIXED') fixedTotal += amt;
+                else variableTotal += amt;
+            });
+
+            const extraTotal = fixedTotal + variableTotal;
+            const grandTotal = (Number(state.mortgage) || 0) + extraTotal;
+
+            // Update 3 Big Numbers
+            document.getElementById('kpi-extra').textContent = formatEuro(extraTotal);
+            document.getElementById('kpi-fixed').textContent = formatEuro(fixedTotal);
+            document.getElementById('kpi-variable').textContent = formatEuro(variableTotal);
+            document.getElementById('extra-count-pill').textContent = `${state.expenses.length} frais`;
+
+            document.getElementById('kpi-total').textContent = formatEuro(grandTotal);
+            document.getElementById('kpi-per-person').textContent = formatEuro(grandTotal / 2);
+
+            // Update Filter Tabs styling
+            ['ALL', 'FIXED', 'VARIABLE'].forEach(tab => {
+                const btn = document.getElementById('tab-' + tab);
+                if (currentFilter === tab) {
+                    btn.className = 'px-3 py-1.5 rounded-lg transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-lg transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+                }
+            });
+
+            // Filter expenses
+            const filtered = state.expenses.filter(item => {
+                if (currentFilter === 'ALL') return true;
+                return item.type === currentFilter;
+            });
+
+            const listEl = document.getElementById('expenses-list');
+            const emptyEl = document.getElementById('empty-state');
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+
+            listEl.innerHTML = filtered.map(item => {
+                const isFixed = item.type === 'FIXED';
+                return `
+                <div class="px-4 sm:px-5 py-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition group">
+                    
+                    <!-- Bouton bascule Fixe / Quotidien en 1 clic -->
+                    <button onclick="toggleType('${item.id}')" title="Cliquer pour changer entre Frais Fixe et Quotidien"
+                        class="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition ${
+                            isFixed
+                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                        }">
+                        ${isFixed ? '📌 Fixe' : '🛒 Quotidien'}
+                    </button>
+
+                    <!-- Nom modifiable directement -->
+                    <input type="text" value="${escapeAttr(item.title)}"
+                        onchange="updateItemTitle('${item.id}', this.value)"
+                        class="flex-1 min-w-0 bg-transparent text-sm font-semibold text-slate-800 dark:text-slate-100 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                        title="Cliquez pour renommer">
+
+                    <!-- Montant modifiable directement -->
+                    <div class="flex items-center gap-1 shrink-0">
+                        <input type="number" step="0.01" value="${item.amount}"
+                            onchange="updateItemAmount('${item.id}', this.value)"
+                            class="w-24 text-right bg-transparent text-sm sm:text-base font-extrabold text-slate-900 dark:text-white px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            title="Cliquez pour modifier le montant">
+                        <span class="text-sm font-bold text-slate-400">€</span>
+                    </div>
+
+                    <!-- Supprimer en 1 clic -->
+                    <button onclick="deleteItem('${item.id}')" class="p-2 rounded-lg text-slate-300 hover:text-rose-600 dark:text-slate-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition shrink-0" title="Supprimer cette ligne">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+
+                </div>
+                `;
+            }).join('');
+        }
+
+        function escapeAttr(str) {
+            return String(str || '').replace(/"/g, '&quot;');
+        }
+
+        // Actions CRUD ultra-rapides
+        function updateMortgage(val) {
+            state.mortgage = parseFloat(val) || 0;
+            saveData();
+            render();
+        }
+
+        function quickAddExpense(e) {
+            e.preventDefault();
+            const titleInput = document.getElementById('add-title');
+            const amountInput = document.getElementById('add-amount');
+            const typeInput = document.getElementById('add-type');
+
+            const title = titleInput.value.trim();
+            const amount = parseFloat(amountInput.value);
+
+            if (!title || isNaN(amount)) return;
+
+            state.expenses.unshift({
+                id: Date.now().toString(),
+                title: title,
+                amount: amount,
+                type: typeInput.value
+            });
+
+            titleInput.value = '';
+            amountInput.value = '';
+            titleInput.focus();
+
+            saveData(true);
+            render();
+        }
+
+        function fillPreset(label, type) {
+            const titleInput = document.getElementById('add-title');
+            const amountInput = document.getElementById('add-amount');
+            const typeInput = document.getElementById('add-type');
+
+            titleInput.value = label;
+            typeInput.value = type;
+            amountInput.focus();
+        }
+
+        function updateItemTitle(id, newTitle) {
+            const item = state.expenses.find(e => e.id === id);
+            if (item) {
+                item.title = newTitle.trim() || 'Dépense';
+                saveData(true);
+                render();
+            }
+        }
+
+        function updateItemAmount(id, newAmount) {
+            const item = state.expenses.find(e => e.id === id);
+            if (item) {
+                item.amount = parseFloat(newAmount) || 0;
+                saveData(true);
+                render();
+            }
+        }
+
+        function toggleType(id) {
+            const item = state.expenses.find(e => e.id === id);
+            if (item) {
+                item.type = item.type === 'FIXED' ? 'VARIABLE' : 'FIXED';
+                saveData(true);
+                render();
+            }
+        }
+
+        function deleteItem(id) {
+            state.expenses = state.expenses.filter(e => e.id !== id);
+            saveData(true);
+            render();
+        }
+
+        function setFilter(f) {
+            currentFilter = f;
+            render();
+        }
+
+        // Nouveau mois : garder uniquement les frais fixes
+        function openNewMonthConfirm() {
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeNewMonthConfirm() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function resetVariableExpenses() {
+            state.expenses = state.expenses.filter(e => e.type === 'FIXED');
+            saveData(true);
+            closeNewMonthConfirm();
+            render();
+            showToast('Nouveau mois prêt (frais fixes conservés)');
+        }
+
+        // Export / Import JSON pour GitHub Pages
+        function exportData() {
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'budget-couple.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && Array.isArray(parsed.expenses)) {
+                        state = parsed;
+                        saveData(true);
+                        render();
+                        showToast('Données importées !');
+                    }
+                } catch (err) {
+                    showToast('Fichier invalide');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // Dark / Light Theme
+        function initTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun text-amber-400 text-xs';
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+            document.getElementById('theme-icon').className = isDark
+                ? 'fa-solid fa-sun text-amber-400 text-xs'
+                : 'fa-solid fa-moon text-xs';
+        }
+
+        window.onload = () => {
+            initTheme();
+            loadData();
+            render();
+        };
+    </script>
+</body>
+</html>
